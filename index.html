@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>인지적 병목 및 잔여 동기 측정 실험</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f4f9; color: #333; text-align: center; padding: 40px; }
+        .container { background: #fff; max-width: 700px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        button { background-color: #4CAF50; color: white; border: none; padding: 12px 24px; margin: 10px; font-size: 16px; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        button:hover { background-color: #45a049; }
+        button.secondary { background-color: #f44336; }
+        button.secondary:hover { background-color: #d32f2f; }
+        .hidden { display: none; }
+        .stimulus-box { font-size: 24px; font-weight: bold; margin: 20px 0; color: #2c3e50; }
+        .prime-flash { font-size: 14px; color: #e74c3c; height: 20px; font-weight: bold; }
+        
+        /* 연구자 전용 관리 패널 스타일 */
+        .admin-box { margin-top: 30px; border-top: 2px dashed #3498db; padding-top: 20px; font-size: 14px; text-align: left; display: none; background: #ecf0f1; padding: 20px; border-radius: 8px; }
+        
+        /* 웹상 표(Table) 스타일 */
+        .data-table-container { max-height: 250px; overflow-y: auto; margin: 15px 0; background: #fff; border: 1px solid #ccc; border-radius: 4px; }
+        table.result-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+        table.result-table th, table.result-table td { padding: 8px 10px; border-bottom: 1px solid #ddd; }
+        table.result-table th { background-color: #34495e; color: white; position: sticky; top: 0; }
+        table.result-table tr:hover { background-color: #f1f1f1; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="app">
+    <!-- 단계 1: 안내 -->
+    <div id="step-intro">
+        <h2>인지적 병목 잔여 동기 측정 실험</h2>
+        <p>본 실험은 의사결정 이후 억눌린 동기가 인지 병목을 거쳐 재참조되는 과정을 측정합니다.</p>
+        <button onclick="startExperiment()">실험 시작하기</button>
+    </div>
+
+    <!-- 단계 2: 딜레마 선택 (T1) -->
+    <div id="step-dilemma" class="hidden">
+        <p><strong>[시나리오]</strong> 아래 두 가지 대안 중 하나를 신속하게 선택하세요.</p>
+        <div class="stimulus-box">
+            A안: 고연봉 · 안정적 반복 업무<br><small>(추구 동기: 생계 및 안정)</small><br><br>
+            B안: 저소득 · 창의적 기획 업무<br><small>(추구 동기: 자아실현 및 열정)</small>
+        </div>
+        <button onclick="makeChoice('A_Stable')">A안 선택 (안정)</button>
+        <button onclick="makeChoice('B_Creative')" class="secondary">B안 선택 (창의)</button>
+    </div>
+
+    <!-- 단계 3: 병목 및 프라임 구간 (SOA) -->
+    <div id="step-bottleneck" class="hidden">
+        <p>잠시 후 다음 과제로 넘어갑니다...</p>
+        <div class="prime-flash" id="prime-display"></div>
+        <div id="loading-text">처리 중...</div>
+    </div>
+
+    <!-- 단계 4: 사후 재평가 및 번복 (T2) -->
+    <div id="step-evaluation" class="hidden">
+        <p><strong>[사후 재평가 창]</strong></p>
+        <p>방금 내린 결정을 유지하시겠습니까, 아니면 직관적 느낌을 반영하여 번복하시겠습니까?</p>
+        <button onclick="submitFinal('Keep')">결정 유지</button>
+        <button onclick="submitFinal('Reverse')" class="secondary">결정 번복 (변경)</button>
+    </div>
+
+    <!-- 단계 5: 완료 -->
+    <div id="step-complete" class="hidden">
+        <h2>실험에 참여해주셔서 감사합니다!</h2>
+        <p>응답이 안전하게 기록되었습니다.</p>
+        <button onclick="resetToHome()">다음 참여자 / 다시 하기</button>
+
+        <!-- 연구자(본인)만 볼 수 있는 결과 확인 패널 (?admin=true 로 접속 시에만 표시됨) -->
+        <div class="admin-box" id="admin-panel">
+            <p style="margin-top:0; color:#2980b9; font-weight:bold; font-size:16px;">🛠️ [연구자 전용 관리 패널]</p>
+            <p id="data-count-text" style="font-weight: bold; color: #333;">현재 누적된 데이터: 0개</p>
+            
+            <!-- 웹상에서 바로 보는 표 영역 -->
+            <div class="data-table-container">
+                <table class="result-table" id="result-table">
+                    <thead>
+                        <tr>
+                            <th>시간</th>
+                            <th>초기선택</th>
+                            <th>지연(ms)</th>
+                            <th>프라임유형</th>
+                            <th>번복여부</th>
+                            <th>반응시간</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- 데이터가 여기에 동적으로 채워집니다 -->
+                    </tbody>
+                </table>
+            </div>
+
+            <button onclick="downloadCSV()" style="background-color: #2196F3; font-size: 14px; padding: 8px 16px;">엑셀(CSV) 파일 다운로드</button>
+            <button onclick="clearData()" style="background-color: #e74c3c; font-
